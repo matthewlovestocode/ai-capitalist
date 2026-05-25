@@ -89,6 +89,10 @@ export function VentureCard({
   const activeEmployees = budgetEmployees.length;
   const percent = ventureProgressRatio(venture) * 100;
   const isAutomatedRunning = venture.automated && venture.owned > 0;
+  const automatedProgressStyle = {
+    animationDelay: `-${venture.progress}ms`,
+    animationDuration: `${cycleMs}ms`
+  };
   const VentureIcon = ventureIcons[venture.id] ?? (venture.category === "annotation" ? FileCheck2 : Bot);
 
   return (
@@ -131,7 +135,7 @@ export function VentureCard({
         <div className="progress-track">
           <div
             className={`progress-fill${isAutomatedRunning ? " progress-fill-automated" : ""}`}
-            style={isAutomatedRunning ? { animationDuration: `${cycleMs}ms` } : { width: `${percent}%` }}
+            style={isAutomatedRunning ? automatedProgressStyle : { width: `${percent}%` }}
           />
         </div>
         <div className="venture-actions">
