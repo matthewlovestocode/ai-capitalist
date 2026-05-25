@@ -5,27 +5,30 @@ import {
   createManager,
   currentDatingPressure,
   currentLifestylePressure,
-  Employee,
   GameState,
+  layoffPrograms,
   lifestyleAssets,
   nextWifeOffer,
   Venture,
   ventureCost,
   ventureCycleMs,
-  ventureRevenue
+  ventureRevenue,
+  zuskCapacity
 } from "@/lib/game";
 
 export type AutomationEvent =
-  | { kind: "layoff"; count: number; ventureName: string }
   | { kind: "annotation"; ventureName: string }
+  | null;
+
+export type LayoffProgramEvent =
+  | { kind: "layoff-program"; programName: string; displacedCount: number }
   | null;
 
 /**
  * Buys one additional unit of a venture.
  *
- * Manual operations and annotation ventures hire or reassign one worker. Automated operations only
- * scale compute capacity. Invalid, locked, or unaffordable purchases are no-ops so UI handlers can
- * dispatch safely.
+ * Manual operations and annotation ventures hire one worker. Automated operations only scale compute
+ * capacity. Invalid, locked, or unaffordable purchases are no-ops so UI handlers can dispatch safely.
  */
 export function buyVenture(state: GameState, ventureId: string): GameState {
   const venture = state.ventures.find((item) => item.id === ventureId);
@@ -64,7 +67,7 @@ export function startVenture(state: GameState, ventureId: string): GameState {
 /**
  * Converts a venture into automated mode.
  *
- * The returned state is authoritative. The event is only a UI-facing description for toast messages.
+ * The returned state is authoritative. The event only describes annotation management automation.
  */
 export function automateVenture(
   state: GameState,
@@ -75,9 +78,9 @@ export function automateVenture(
     return { event: null, state };
   }
 
-  const automatesWithLayoffs = venture.category === "operations";
+  const isOperationsAutomation = venture.category === "operations";
   /**
-   * Operations automation replaces product staff with compute plus one manager.
+   * Operations automation now increases management capacity without firing staff.
    * Annotation automation only removes manual execution; workers stay assigned and no manager payroll is added.
    */
   const nextState = {
@@ -88,32 +91,75 @@ export function automateVenture(
         ? {
             ...item,
             automated: true,
-            manager: automatesWithLayoffs ? createManager(item) : item.manager,
-            employees: automatesWithLayoffs ? [] : item.employees,
+            manager: isOperationsAutomation ? createManager(item) : item.manager,
+            employees: item.employees,
             progress: item.progress || 1
           }
         : item
     ),
-    unemployed: automatesWithLayoffs
-      ? [
-          ...state.unemployed,
-          ...venture.employees.map((employee) => ({
-            ...employee,
-            formerVenture: venture.name
-          }))
-        ]
-      : state.unemployed
+    unemployed: state.unemployed
   };
 
-  if (automatesWithLayoffs && venture.employees.length > 0) {
-    return { event: { kind: "layoff", count: venture.employees.length, ventureName: venture.name }, state: nextState };
-  }
-
-  if (!automatesWithLayoffs) {
+  if (!isOperationsAutomation) {
     return { event: { kind: "annotation", ventureName: venture.name }, state: nextState };
   }
 
   return { event: null, state: nextState };
+}
+
+/**
+ * Executes a one-time manual layoff program when Zusk capacity has reached its threshold.
+ *
+ * This is intentionally separate from automation. Programs displace active operations workers, record
+ * them in unemployment, and unlock a permanent operations profit multiplier.
+ */
+export function runLayoffProgram(
+  state: GameState,
+  programId: string
+): { event: LayoffProgramEvent; state: GameState } {
+  const program = layoffPrograms.find((item) => item.id === programId);
+  if (!program || state.purchasedLayoffProgramIds.includes(program.id) || zuskCapacity(state) < program.requiredCapacity) {
+    return { event: null, state };
+  }
+
+  let remainingLayoffs = program.employeeTarget;
+  const displaced: GameState["unemployed"] = [];
+  const ventures = state.ventures.map((venture) => {
+    if (venture.category !== "operations" || remainingLayoffs <= 0 || venture.employees.length === 0) {
+      return venture;
+    }
+
+    const layoffsFromVenture = Math.min(remainingLayoffs, venture.employees.length);
+    const employeesToDisplace = venture.employees.slice(0, layoffsFromVenture);
+    remainingLayoffs -= layoffsFromVenture;
+    displaced.push(
+      ...employeesToDisplace.map((employee) => ({
+        ...employee,
+        formerVenture: venture.name
+      }))
+    );
+
+    return {
+      ...venture,
+      employees: venture.employees.slice(layoffsFromVenture)
+    };
+  });
+
+  if (displaced.length === 0) {
+    return { event: null, state };
+  }
+
+  const nextState = {
+    ...state,
+    ventures,
+    unemployed: [...state.unemployed, ...displaced],
+    purchasedLayoffProgramIds: [...state.purchasedLayoffProgramIds, program.id]
+  };
+
+  return {
+    event: { kind: "layoff-program", programName: program.name, displacedCount: displaced.length },
+    state: nextState
+  };
 }
 
 /**
@@ -248,6 +294,7 @@ export function isCompatibleSave(state: GameState): boolean {
     typeof state.prestige === "number" &&
     typeof state.totalPrestigeEarned === "number" &&
     Array.isArray(state.unemployed) &&
+    Array.isArray(state.purchasedLayoffProgramIds) &&
     Array.isArray(state.ownedLifestyleAssetIds) &&
     Array.isArray(state.refusedWifeIds) &&
     (typeof state.selectedWifeId === "string" || state.selectedWifeId === null) &&
@@ -266,6 +313,9 @@ export function normalizeSave(state: GameState): GameState {
     ...state,
     datingWifeId: state.datingWifeId ?? null,
     ownedLifestyleAssetIds: Array.isArray(state.ownedLifestyleAssetIds) ? state.ownedLifestyleAssetIds : [],
+    purchasedLayoffProgramIds: Array.isArray(state.purchasedLayoffProgramIds)
+      ? state.purchasedLayoffProgramIds
+      : [],
     refusedWifeIds: Array.isArray(state.refusedWifeIds) ? state.refusedWifeIds : [],
     selectedWifeId: state.selectedWifeId ?? null
   };
@@ -322,8 +372,7 @@ export function runTick(state: GameState, deltaMs: number): GameState {
 /**
  * Applies the employee side effects of a venture expansion.
  *
- * Automated operations add owned compute capacity without hiring. All other ventures add one worker,
- * preferring unemployed workers for annotation tasks.
+ * Automated operations add owned compute capacity without hiring. All other ventures add one new worker.
  */
 function assignEmployeeToVenture(state: GameState, ventureId: string): Pick<GameState, "ventures" | "unemployed"> {
   const venture = state.ventures.find((item) => item.id === ventureId);
@@ -340,30 +389,11 @@ function assignEmployeeToVenture(state: GameState, ventureId: string): Pick<Game
   }
 
   const nextIndex = venture.employees.length + venture.owned;
-  let unemployed = state.unemployed;
-  let employee: Employee;
-
-  if (venture.category === "annotation" && unemployed.length > 0) {
-    /**
-     * Annotation ventures preferentially absorb laid-off operations employees before creating new workers.
-     */
-    const [reassigned, ...remaining] = unemployed;
-    const annotationEmployee = createEmployee(venture, nextIndex);
-    employee = {
-      ...reassigned,
-      role: annotationEmployee.role,
-      salary: annotationEmployee.salary,
-      benefits: annotationEmployee.benefits
-    };
-    unemployed = remaining;
-  } else {
-    employee = createEmployee(venture, nextIndex);
-  }
-
+  const employee = createEmployee(venture, nextIndex);
   const cappedEmployee = capEmployeeToProfitableExpansion(employee, state, venture);
 
   return {
-    unemployed,
+    unemployed: state.unemployed,
     ventures: state.ventures.map((item) =>
       item.id === ventureId ? { ...item, owned: item.owned + 1, employees: [...item.employees, cappedEmployee] } : item
     )

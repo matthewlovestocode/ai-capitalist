@@ -41,4 +41,17 @@ test.describe("start menu", () => {
 
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 1);
   });
+
+  test("shows Zusk capacity and layoff programs in the upgrades drawer", async ({ page }) => {
+    await page.goto("/?drawer=upgrades");
+    const startButton = page.getByRole("button", { name: /Start Game/i });
+
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page.getByRole("dialog", { name: "Zusk Levers" })).toBeVisible();
+    await expect(page.getByText("Zusk capacity").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Layoff Programs" })).toBeVisible();
+    await expect(page.getByText("Support Triage Reduction")).toBeVisible();
+  });
 });

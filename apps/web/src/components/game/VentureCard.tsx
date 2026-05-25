@@ -1,27 +1,11 @@
 import {
-  Bot,
-  BrainCircuit,
-  Building2,
-  Captions,
-  Code2,
-  FileCheck2,
-  FileText,
-  Handshake,
-  Landmark,
   Lock,
-  MessageSquareText,
   Play,
   Plus,
   ReceiptText,
-  Scale,
-  SearchCheck,
-  Server,
-  ShieldAlert,
-  ShoppingCart,
   UserCheck,
   UserRound,
-  Users,
-  Workflow
+  Users
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
@@ -94,7 +78,6 @@ export function VentureCard({
   );
   const budgetGroups = summarizeCompensation(budgetEmployees);
   const activeEmployees = budgetEmployees.length;
-  const VentureIcon = ventureIcons[venture.id] ?? (venture.category === "annotation" ? FileCheck2 : Bot);
   const ventureImage = ventureImages[venture.id];
 
   return (
@@ -103,168 +86,167 @@ export function VentureCard({
         <div className="venture-art-frame" aria-hidden>
           {ventureImage ? (
             <Image className="venture-art" src={ventureImage} alt="" width={160} height={160} unoptimized />
-          ) : (
-            <VentureIcon size={42} strokeWidth={1.8} />
-          )}
+          ) : null}
         </div>
         <div className="venture-main">
-        <div className="venture-heading">
-          <div className="venture-title-row">
-            <div className="venture-icon" aria-hidden>
-              <VentureIcon size={22} strokeWidth={2} />
-            </div>
-            <div>
-              <h2>{venture.name}</h2>
-              <p>
-                {isLocked ? (
-                  "Locked until nearby ventures are automated"
-                ) : (
-                  <>
-                    {activeEmployees} active {activeEmployees === 1 ? "employee" : "employees"} · {formatMoney(revenue)} net / cycle · {(cycleMs / 1000).toFixed(1)}s · x
-                    {multiplierFor(state, venture.id).toFixed(2)}
-                    {venture.lastPayout ? ` · last +${formatMoney(venture.lastPayout)}` : ""}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-          {isLocked ? (
-            <span className="locked-badge">
-              <Lock size={14} />
-              Locked
-            </span>
-          ) : null}
-          <Button
-            aria-disabled={!canStart}
-            aria-label={`${venture.action} ${venture.name}`}
-            onClick={() => onStart(venture.id)}
-            variant="icon"
-          >
-            <Play size={18} />
-          </Button>
-        </div>
-        <VentureCycleStatus isLocked={isLocked} venture={venture} />
-        <div className="venture-actions">
-          <Button className="venture-action-button expand-button" onClick={() => onBuy(venture.id)} disabled={!canBuy}>
-            <Plus size={15} />
-            <span className="button-label">Expand</span>
-            <span className="button-value">{formatMoney(cost)}</span>
-          </Button>
-          <Button
-            aria-expanded={isBudgetOpen}
-            className="venture-action-button budget-button"
-            disabled={isLocked}
-            onClick={() => onToggleBudget(venture.id)}
-            type="button"
-          >
-            <ReceiptText size={15} />
-            <span className="button-label">Budget</span>
-          </Button>
-          <Button
-            aria-expanded={isEmployeesOpen}
-            className="venture-action-button employees-button"
-            disabled={isLocked}
-            onClick={() => onToggleEmployees(venture.id)}
-            type="button"
-          >
-            <Users size={15} />
-            <span className="button-label">Employees</span>
-          </Button>
-          <Button
-            className="venture-action-button automate-button"
-            onClick={() => onHireManager(venture.id)}
-            disabled={isLocked || venture.automated || cash < venture.managerCost}
-          >
-            <UserCheck size={15} />
-            <span className="button-label">{venture.automated ? "Auto" : "Automate"}</span>
-            {!venture.automated ? <span className="button-value">{formatMoney(venture.managerCost)}</span> : null}
-          </Button>
-        </div>
-        {isBudgetOpen ? (
-          <div className="budget-panel">
-            <div className="budget-summary">
-              <span>Gross {formatMoney(grossRevenue)}</span>
-              <span>{usesComputeBudget ? "Compute" : "Payroll"} {formatMoney(usesComputeBudget ? computeCosts.total : payroll)}</span>
-              <strong>Net {formatMoney(revenue)}</strong>
-            </div>
-            {usesComputeBudget ? (
-              <div className="budget-group-list">
-                <div className="budget-group-row">
-                  <span>
-                    <strong>GPU inference and training runs</strong>
-                    <small>{venture.owned.toLocaleString()} automated capacity units</small>
-                  </span>
-                  <span>Compute {formatMoney(computeCosts.compute)}</span>
-                  <span>Overhead {formatMoney(computeCosts.overhead)}</span>
-                  <b>Total {formatMoney(computeCosts.total)}</b>
-                </div>
+          <div className="venture-heading">
+            <div className="venture-title-row">
+              <div>
+                <h2>{venture.name}</h2>
+                <p>
+                  {isLocked ? (
+                    "Locked until nearby ventures are automated"
+                  ) : (
+                    <>
+                      {activeEmployees} active {activeEmployees === 1 ? "employee" : "employees"} ·{" "}
+                      {formatMoney(revenue)} net / cycle · {(cycleMs / 1000).toFixed(1)}s · x
+                      {multiplierFor(state, venture.id).toFixed(2)}
+                      {venture.lastPayout ? ` · last +${formatMoney(venture.lastPayout)}` : ""}
+                    </>
+                  )}
+                </p>
               </div>
-            ) : budgetGroups.length > 0 ? (
-              <div className="budget-group-list">
-                {budgetGroups.map((group) => (
-                  <div className="budget-group-row" key={group.key}>
+            </div>
+            {isLocked ? (
+              <span className="locked-badge">
+                <Lock size={14} />
+                Locked
+              </span>
+            ) : null}
+            <Button
+              aria-disabled={!canStart}
+              aria-label={`${venture.action} ${venture.name}`}
+              onClick={() => onStart(venture.id)}
+              variant="icon"
+            >
+              <Play size={18} />
+            </Button>
+          </div>
+          <VentureCycleStatus isLocked={isLocked} venture={venture} />
+          <div className="venture-actions">
+            <Button className="venture-action-button expand-button" onClick={() => onBuy(venture.id)} disabled={!canBuy}>
+              <Plus size={15} />
+              <span className="button-label">Expand</span>
+              <span className="button-value">{formatMoney(cost)}</span>
+            </Button>
+            <Button
+              aria-expanded={isBudgetOpen}
+              className="venture-action-button budget-button"
+              disabled={isLocked}
+              onClick={() => onToggleBudget(venture.id)}
+              type="button"
+            >
+              <ReceiptText size={15} />
+              <span className="button-label">Budget</span>
+            </Button>
+            <Button
+              aria-expanded={isEmployeesOpen}
+              className="venture-action-button employees-button"
+              disabled={isLocked}
+              onClick={() => onToggleEmployees(venture.id)}
+              type="button"
+            >
+              <Users size={15} />
+              <span className="button-label">Employees</span>
+            </Button>
+            <Button
+              className="venture-action-button automate-button"
+              onClick={() => onHireManager(venture.id)}
+              disabled={isLocked || venture.automated || cash < venture.managerCost}
+            >
+              <UserCheck size={15} />
+              <span className="button-label">{venture.automated ? "Auto" : "Automate"}</span>
+              {!venture.automated ? <span className="button-value">{formatMoney(venture.managerCost)}</span> : null}
+            </Button>
+          </div>
+          {isBudgetOpen ? (
+            <div className="budget-panel">
+              <div className="budget-summary">
+                <span>Gross {formatMoney(grossRevenue)}</span>
+                <span>
+                  {usesComputeBudget ? "Compute" : "Payroll"}{" "}
+                  {formatMoney(usesComputeBudget ? computeCosts.total : payroll)}
+                </span>
+                <strong>Net {formatMoney(revenue)}</strong>
+              </div>
+              {usesComputeBudget ? (
+                <div className="budget-group-list">
+                  <div className="budget-group-row">
                     <span>
-                      <strong>{group.role}</strong>
-                      <small>
-                        {group.level} · {group.count} {group.count === 1 ? "person" : "people"} · Avg salary{" "}
-                        {formatMoney(group.salary / group.count)}
-                      </small>
+                      <strong>GPU inference and training runs</strong>
+                      <small>{venture.owned.toLocaleString()} automated capacity units</small>
                     </span>
-                    <span>Salary {formatMoney(group.salary)}</span>
-                    <span>Benefits {formatMoney(group.benefits)}</span>
-                    <b>Total {formatMoney(group.salary + group.benefits)}</b>
+                    <span>Compute {formatMoney(computeCosts.compute)}</span>
+                    <span>Overhead {formatMoney(computeCosts.overhead)}</span>
+                    <b>Total {formatMoney(computeCosts.total)}</b>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="empty-budget">
-                {venture.automated && venture.category === "operations"
-                  ? "Automated. Former employees moved to the unemployment pool."
-                  : "No payroll yet."}
-              </p>
-            )}
-          </div>
-        ) : null}
-        {isEmployeesOpen ? (
-          <div className="budget-panel employees-panel">
-            <div className="detail-panel-heading">
-              <UserRound size={16} />
-              <strong>Employees</strong>
-              <span>{budgetEmployees.length.toLocaleString()} active</span>
-            </div>
-            {budgetEmployees.length > 0 ? (
-              <>
-                <div className="employee-list">
-                  {visibleEmployees.map((employee) => (
-                    <div className="employee-row" key={employee.id}>
+                </div>
+              ) : budgetGroups.length > 0 ? (
+                <div className="budget-group-list">
+                  {budgetGroups.map((group) => (
+                    <div className="budget-group-row" key={group.key}>
                       <span>
-                        <strong>{employee.name}</strong>
+                        <strong>{group.role}</strong>
                         <small>
-                          {employee.level === "manager" ? "Manager" : "Worker"} · {employee.role} · Salary {formatMoney(employee.salary)} · Benefits{" "}
-                          {formatMoney(employee.benefits)}
+                          {group.level} · {group.count} {group.count === 1 ? "person" : "people"} · Avg salary{" "}
+                          {formatMoney(group.salary / group.count)}
                         </small>
                       </span>
-                      <b>{formatMoney(employee.salary + employee.benefits)}</b>
+                      <span>Salary {formatMoney(group.salary)}</span>
+                      <span>Benefits {formatMoney(group.benefits)}</span>
+                      <b>Total {formatMoney(group.salary + group.benefits)}</b>
                     </div>
                   ))}
                 </div>
-                <PaginationControls
-                  currentPage={currentEmployeePage}
-                  itemCount={budgetEmployees.length}
-                  onPageChange={setEmployeePage}
-                  pageCount={employeePageCount}
-                  pageSize={ventureEmployeePageSize}
-                />
-              </>
-            ) : (
-              <p className="empty-budget">
-                {venture.automated && venture.category === "operations"
-                  ? "Automated. Former employees moved to the unemployment pool."
-                  : "No employees assigned."}
-              </p>
-            )}
-          </div>
-        ) : null}
+              ) : (
+                <p className="empty-budget">
+                  {venture.automated && venture.category === "operations"
+                    ? "Automated. Former employees moved to the unemployment pool."
+                    : "No payroll yet."}
+                </p>
+              )}
+            </div>
+          ) : null}
+          {isEmployeesOpen ? (
+            <div className="budget-panel employees-panel">
+              <div className="detail-panel-heading">
+                <UserRound size={16} />
+                <strong>Employees</strong>
+                <span>{budgetEmployees.length.toLocaleString()} active</span>
+              </div>
+              {budgetEmployees.length > 0 ? (
+                <>
+                  <div className="employee-list">
+                    {visibleEmployees.map((employee) => (
+                      <div className="employee-row" key={employee.id}>
+                        <span>
+                          <strong>{employee.name}</strong>
+                          <small>
+                            {employee.level === "manager" ? "Manager" : "Worker"} · {employee.role} · Salary{" "}
+                            {formatMoney(employee.salary)} · Benefits {formatMoney(employee.benefits)}
+                          </small>
+                        </span>
+                        <b>{formatMoney(employee.salary + employee.benefits)}</b>
+                      </div>
+                    ))}
+                  </div>
+                  <PaginationControls
+                    currentPage={currentEmployeePage}
+                    itemCount={budgetEmployees.length}
+                    onPageChange={setEmployeePage}
+                    pageCount={employeePageCount}
+                    pageSize={ventureEmployeePageSize}
+                  />
+                </>
+              ) : (
+                <p className="empty-budget">
+                  {venture.automated && venture.category === "operations"
+                    ? "Automated. Former employees moved to the unemployment pool."
+                    : "No employees assigned."}
+                </p>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </Panel>
@@ -352,26 +334,6 @@ function summarizeCompensation(employees: Venture["employees"]) {
     return a.role.localeCompare(b.role);
   });
 }
-
-const ventureIcons: Record<string, typeof Bot> = {
-  "agent-rollout": Workflow,
-  "code-review": Code2,
-  "content-labeling": ShoppingCart,
-  datacenter: Server,
-  enterprise: Handshake,
-  "eval-suite": Code2,
-  "executive-alignment": BrainCircuit,
-  "government-contract": Landmark,
-  "image-captions": Captions,
-  layoffs: Bot,
-  "legal-redlines": Scale,
-  "meeting-transcripts": FileText,
-  model: MessageSquareText,
-  "planetary-platform": Building2,
-  rlhf: Users,
-  "robot-campus": Bot,
-  "safety-ratings": SearchCheck
-};
 
 const ventureImages: Record<string, string> = {
   "agent-rollout": "/images/ventures/zuskoffice-copilot.webp",

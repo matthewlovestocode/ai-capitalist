@@ -461,7 +461,7 @@ h1 {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(230px, 0.8fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(230px, 0.85fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -523,7 +523,6 @@ h1 {
 }
 
 .venture-card-locked .venture-art-frame,
-.venture-card-locked .venture-icon,
 .venture-card-locked .cycle-status {
   opacity: 0.58;
 }
@@ -556,17 +555,6 @@ h1 {
   height: 106px;
   object-fit: contain;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.14));
-}
-
-.venture-icon {
-  display: grid;
-  flex: 0 0 42px;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  background: var(--icon-bg);
-  color: var(--green);
 }
 
 .venture-main {
@@ -832,6 +820,26 @@ h1 {
   padding: 16px;
 }
 
+.capacity-panel {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-solid) 82%, var(--bg) 18%);
+  padding: 14px;
+}
+
+.capacity-panel span,
+.capacity-panel small,
+.layoff-row small {
+  color: var(--muted);
+}
+
+.capacity-panel strong {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
 .unemployed-panel {
   display: grid;
   gap: 10px;
@@ -1035,6 +1043,19 @@ h1 {
   gap: 12px;
 }
 
+.lever-section {
+  display: grid;
+  gap: 10px;
+}
+
+.lever-section h3 {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .upgrade-row {
   justify-content: space-between;
   gap: 12px;
@@ -1190,10 +1211,6 @@ h1 {
   .venture-art {
     width: 68px;
     height: 68px;
-  }
-
-  .venture-icon {
-    display: none;
   }
 
   .venture-heading .ui-button-icon {

@@ -37,6 +37,15 @@ export type Upgrade = {
   purchased: boolean;
 };
 
+export type LayoffProgram = {
+  id: string;
+  name: string;
+  description: string;
+  requiredCapacity: number;
+  employeeTarget: number;
+  multiplier: number;
+};
+
 export type LifestyleInterest =
   | "cars"
   | "homes"
@@ -76,6 +85,7 @@ export type GameState = {
   ventures: Venture[];
   unemployed: Employee[];
   upgrades: Upgrade[];
+  purchasedLayoffProgramIds: string[];
   selectedWifeId: string | null;
   datingWifeId: string | null;
   refusedWifeIds: string[];
@@ -298,13 +308,13 @@ export const initialVentures: Venture[] = [
     action: "Release",
     category: "operations",
     baseCost: 8,
-    baseRevenue: 12,
-    cycleMs: 900,
+    baseRevenue: 20,
+    cycleMs: 1600,
     managerCost: 160,
     owned: 1,
     progress: 0,
     automated: false,
-    employees: [createEmployee({ id: "model", category: "operations", baseRevenue: 12 }, 0)]
+    employees: [createEmployee({ id: "model", category: "operations", baseRevenue: 20 }, 0)]
   },
   {
     id: "eval-suite",
@@ -520,6 +530,49 @@ export const initialUpgrades: Upgrade[] = [
   }
 ];
 
+export const layoffPrograms: LayoffProgram[] = [
+  {
+    id: "support-triage-reduction",
+    name: "Support Triage Reduction",
+    description: "Use ZuskChat capacity to eliminate repetitive support queues. Operations revenue x1.35.",
+    requiredCapacity: 35,
+    employeeTarget: 2,
+    multiplier: 1.35
+  },
+  {
+    id: "junior-code-freeze",
+    name: "Junior Code Freeze",
+    description: "Freeze entry-level engineering hiring after ZuskCode clears code review. Operations revenue x1.55.",
+    requiredCapacity: 145,
+    employeeTarget: 4,
+    multiplier: 1.55
+  },
+  {
+    id: "middle-management-compression",
+    name: "Middle Management Compression",
+    description: "Replace weekly status rituals with automated Zusk reports. Operations revenue x1.8.",
+    requiredCapacity: 520,
+    employeeTarget: 7,
+    multiplier: 1.8
+  },
+  {
+    id: "enterprise-services-collapse",
+    name: "Enterprise Services Collapse",
+    description: "Bundle deployment, onboarding, and account work into ZuskAgent. Operations revenue x2.15.",
+    requiredCapacity: 2100,
+    employeeTarget: 12,
+    multiplier: 2.15
+  },
+  {
+    id: "global-workforce-reset",
+    name: "Global Workforce Reset",
+    description: "Use mature Zusk capacity to strip the org down to model, compute, and contracts. Operations revenue x2.75.",
+    requiredCapacity: 9200,
+    employeeTarget: 24,
+    multiplier: 2.75
+  }
+];
+
 export const wifeChoices: WifeChoice[] = [
   {
     id: "ava",
@@ -666,6 +719,7 @@ export function createInitialState(): GameState {
     ventures: structuredClone(initialVentures),
     unemployed: [],
     upgrades: structuredClone(initialUpgrades),
+    purchasedLayoffProgramIds: [],
     selectedWifeId: null,
     datingWifeId: null,
     refusedWifeIds: [],
@@ -740,6 +794,59 @@ export function multiplierFor(state: GameState, ventureId: string): number {
 }
 
 /**
+ * Calculates Zusk's current replacement capacity from owned model-training ventures.
+ *
+ * @param state - The current game state.
+ * @returns A compact capacity score used to unlock manual layoff programs.
+ */
+export function zuskCapacity(state: GameState): number {
+  return state.ventures.reduce((total, venture) => {
+    if (venture.category !== "operations" || venture.owned === 0) return total;
+
+    const automationBonus = venture.automated ? 1.7 : 1;
+    return total + venture.owned * venture.baseRevenue * automationBonus;
+  }, 0);
+}
+
+/**
+ * Formats Zusk capacity for UI labels without pretending it is currency.
+ *
+ * @param value - The raw capacity score.
+ * @returns A compact capacity label.
+ */
+export function formatCapacity(value: number): string {
+  if (value < 1000) return value.toFixed(value < 100 ? 1 : 0);
+
+  const units = ["K", "M", "B"];
+  let scaled = value;
+  let unitIndex = -1;
+
+  while (scaled >= 1000 && unitIndex < units.length - 1) {
+    scaled /= 1000;
+    unitIndex += 1;
+  }
+
+  return `${scaled.toFixed(scaled < 10 ? 2 : 1)}${units[unitIndex]}`;
+}
+
+/**
+ * Computes the operations profit multiplier earned from completed layoff programs.
+ *
+ * @param state - The current game state.
+ * @param venture - The venture receiving revenue.
+ * @returns A multiplier applied only to model-training ventures.
+ */
+export function layoffProgramMultiplierFor(state: GameState, venture: Venture): number {
+  if (venture.category !== "operations") return 1;
+
+  return layoffPrograms.reduce((total, program) => {
+    if (!state.purchasedLayoffProgramIds.includes(program.id)) return total;
+
+    return total * program.multiplier;
+  }, 1);
+}
+
+/**
  * Totals all salary and benefit costs assigned to a venture.
  *
  * @param venture - The venture whose employees should be costed.
@@ -787,7 +894,13 @@ export function ventureComputeCosts(venture: Venture): { compute: number; overhe
 export function ventureGrossRevenue(state: GameState, venture: Venture): number {
   // Automated operations run less often, but each completion is a larger productized release.
   const automationRewardMultiplier = venture.automated && venture.category === "operations" ? 2.5 : 1;
-  return venture.baseRevenue * venture.owned * multiplierFor(state, venture.id) * automationRewardMultiplier;
+  return (
+    venture.baseRevenue *
+    venture.owned *
+    multiplierFor(state, venture.id) *
+    automationRewardMultiplier *
+    layoffProgramMultiplierFor(state, venture)
+  );
 }
 
 /**

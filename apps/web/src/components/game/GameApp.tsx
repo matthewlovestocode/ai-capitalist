@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BrainCircuit,
   BriefcaseBusiness,
   Building2,
   ClipboardList,
@@ -32,10 +33,13 @@ import {
   claimablePrestige,
   currentNetWorth,
   createInitialState,
+  formatCapacity,
   formatMoney,
   GameState,
+  layoffPrograms,
   LEGACY_SAVE_KEYS,
-  SAVE_KEY
+  SAVE_KEY,
+  zuskCapacity
 } from "@/lib/game";
 import {
   acceptMarriage as acceptMarriageState,
@@ -48,6 +52,7 @@ import {
   normalizeSave,
   refuseWife as refuseWifeState,
   resetForPrestige as resetForPrestigeState,
+  runLayoffProgram as runLayoffProgramState,
   runTick,
   startDating as startDatingState,
   startVenture as startVentureState
@@ -105,7 +110,8 @@ export function GameApp({
       return;
     }
 
-    const savedTheme = localStorage.getItem(THEME_KEY);
+    const storage = getBrowserStorage();
+    const savedTheme = storage?.getItem(THEME_KEY);
     const nextTheme = savedTheme === "dark" ? "dark" : "light";
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
@@ -113,11 +119,12 @@ export function GameApp({
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
+    getBrowserStorage()?.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(SAVE_KEY);
+    const storage = getBrowserStorage();
+    const saved = storage?.getItem(SAVE_KEY);
     if (!saved) {
       setHasSave(false);
       setLoaded(true);
@@ -143,7 +150,7 @@ export function GameApp({
 
   useEffect(() => {
     if (!loaded || screen !== "playing") return;
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...state, lastSavedAt: Date.now() }));
+    getBrowserStorage()?.setItem(SAVE_KEY, JSON.stringify({ ...state, lastSavedAt: Date.now() }));
     setHasSave(true);
   }, [loaded, screen, state]);
 
@@ -167,6 +174,14 @@ export function GameApp({
   const availablePrestige = useMemo(() => claimablePrestige(state), [state]);
   const netWorth = useMemo(() => currentNetWorth(state), [state]);
   const incomePerSecond = useMemo(() => automatedIncomePerSecond(state), [state]);
+  const capacity = useMemo(() => zuskCapacity(state), [state]);
+  const operationsEmployeeCount = useMemo(
+    () =>
+      state.ventures
+        .filter((venture) => venture.category === "operations")
+        .reduce((total, venture) => total + venture.employees.length, 0),
+    [state.ventures]
+  );
   const activeVentures = useMemo(
     () =>
       activeTab === "workers"
@@ -196,23 +211,13 @@ export function GameApp({
   }
 
   /**
-   * Automates a venture and emits the correct toast for layoffs or annotation management.
+   * Automates a venture and keeps user feedback limited to annotation management changes.
    *
    * @param id - The venture id to automate.
    */
   function hireManager(id: string) {
     const automationEvent = automateVenture(state, id).event;
     setState((current) => automateVenture(current, id).state);
-
-    if (automationEvent?.kind === "layoff") {
-      setToast({
-        id: Date.now(),
-        message: `Congratulations. You laid off ${automationEvent.count.toLocaleString()} ${
-          automationEvent.count === 1 ? "person" : "people"
-        } from ${automationEvent.ventureName}.`
-      });
-      return;
-    }
 
     if (automationEvent?.kind === "annotation") {
       setToast({
@@ -229,6 +234,23 @@ export function GameApp({
    */
   function buyUpgrade(id: string) {
     setState((current) => buyUpgradeState(current, id));
+  }
+
+  /**
+   * Runs a manual layoff program unlocked by Zusk capacity.
+   *
+   * @param id - The layoff program id to execute.
+   */
+  function runLayoffProgram(id: string) {
+    const result = runLayoffProgramState(state, id);
+    setState((current) => runLayoffProgramState(current, id).state);
+
+    if (result.event?.kind === "layoff-program") {
+      setToast({
+        id: Date.now(),
+        message: `${result.event.programName} displaced ${result.event.displacedCount.toLocaleString()} workers. Operations profit increased.`
+      });
+    }
   }
 
   /**
@@ -426,6 +448,7 @@ export function GameApp({
         <StatCard icon={<Building2 size={18} />} label="Lifetime profit" value={formatMoney(state.lifetimeEarnings)} />
         <StatCard icon={<Gem size={18} />} label="Net worth" value={formatMoney(netWorth)} />
         <StatCard icon={<Siren size={18} />} label="Prestige" value={state.prestige.toLocaleString()} />
+        <StatCard icon={<BrainCircuit size={18} />} label="Zusk capacity" value={formatCapacity(capacity)} />
         <StatCard icon={<UserX size={18} />} label="Unemployed" value={state.unemployed.length.toLocaleString()} />
         <Button className="prestige-button" onClick={resetForPrestige} disabled={availablePrestige === 0} variant="dark">
           <RefreshCcw size={18} />
@@ -480,8 +503,13 @@ export function GameApp({
           <div className="right-drawer" role="dialog" aria-modal="true" aria-label="Zusk Levers" onClick={(event) => event.stopPropagation()}>
             <UpgradePanel
               cash={state.cash}
+              layoffPrograms={layoffPrograms}
+              operationsEmployeeCount={operationsEmployeeCount}
               onBuyUpgrade={buyUpgrade}
               onClose={() => setIsUpgradeDrawerOpen(false)}
+              onRunLayoffProgram={runLayoffProgram}
+              purchasedLayoffProgramIds={state.purchasedLayoffProgramIds}
+              zuskCapacity={capacity}
               upgrades={state.upgrades}
             />
           </div>
@@ -536,6 +564,24 @@ export function GameApp({
  * Removes the current and legacy local save keys from the browser.
  */
 function clearSavedGames() {
-  localStorage.removeItem(SAVE_KEY);
-  LEGACY_SAVE_KEYS.forEach((key) => localStorage.removeItem(key));
+  const storage = getBrowserStorage();
+  storage?.removeItem(SAVE_KEY);
+  LEGACY_SAVE_KEYS.forEach((key) => storage?.removeItem(key));
+}
+
+/**
+ * Safely returns browser storage when the current runtime provides it.
+ *
+ * @returns The localStorage object, or null in restricted browser contexts.
+ */
+function getBrowserStorage(): Storage | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
 }
