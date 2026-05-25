@@ -4,6 +4,12 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/**
+ * Maps URL search parameters into initial UI state for the game shell.
+ *
+ * @param props - Next.js page props containing optional search parameters.
+ * @returns The main game app with route-driven initial state.
+ */
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
   const modal = typeof params?.modal === "string" ? params.modal : null;

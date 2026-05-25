@@ -5,6 +5,12 @@ export type ToastMessage = {
   message: string;
 };
 
+/**
+ * Announces transient game feedback in an accessible live region.
+ *
+ * @param props - The toast message to display, or null when hidden.
+ * @returns A toast region when a message is active, otherwise null.
+ */
 export function Toast({ toast }: { toast: ToastMessage | null }) {
   if (!toast) return null;
 

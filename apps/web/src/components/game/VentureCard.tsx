@@ -23,9 +23,11 @@ import {
   Users,
   Workflow
 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
+import { VentureCycleStatus } from "@/components/game/VentureCycleStatus";
 import type { GameState, Venture } from "@/lib/game";
 import {
   formatMoney,
@@ -35,7 +37,6 @@ import {
   ventureCost,
   ventureGrossRevenue,
   venturePayroll,
-  ventureProgressRatio,
   ventureRevenue
 } from "@/lib/game";
 
@@ -55,6 +56,12 @@ type VentureCardProps = {
   venture: Venture;
 };
 
+/**
+ * Renders one venture with progress, expansion, automation, budget, and employee controls.
+ *
+ * @param props - Venture state, player cash, open panels, lock state, and action callbacks.
+ * @returns A venture card for the active venture tab.
+ */
 export function VentureCard({
   cash,
   isBudgetOpen,
@@ -87,17 +94,20 @@ export function VentureCard({
   );
   const budgetGroups = summarizeCompensation(budgetEmployees);
   const activeEmployees = budgetEmployees.length;
-  const percent = ventureProgressRatio(venture) * 100;
-  const isAutomatedRunning = venture.automated && venture.owned > 0;
-  const automatedProgressStyle = {
-    animationDelay: `-${venture.progress}ms`,
-    animationDuration: `${cycleMs}ms`
-  };
   const VentureIcon = ventureIcons[venture.id] ?? (venture.category === "annotation" ? FileCheck2 : Bot);
+  const ventureImage = ventureImages[venture.id];
 
   return (
     <Panel as="article" className={`venture-card${isLocked ? " venture-card-locked" : ""}`}>
-      <div className="venture-main">
+      <div className="venture-card-layout">
+        <div className="venture-art-frame" aria-hidden>
+          {ventureImage ? (
+            <Image className="venture-art" src={ventureImage} alt="" width={160} height={160} unoptimized />
+          ) : (
+            <VentureIcon size={42} strokeWidth={1.8} />
+          )}
+        </div>
+        <div className="venture-main">
         <div className="venture-heading">
           <div className="venture-title-row">
             <div className="venture-icon" aria-hidden>
@@ -112,6 +122,7 @@ export function VentureCard({
                   <>
                     {activeEmployees} active {activeEmployees === 1 ? "employee" : "employees"} · {formatMoney(revenue)} net / cycle · {(cycleMs / 1000).toFixed(1)}s · x
                     {multiplierFor(state, venture.id).toFixed(2)}
+                    {venture.lastPayout ? ` · last +${formatMoney(venture.lastPayout)}` : ""}
                   </>
                 )}
               </p>
@@ -132,12 +143,7 @@ export function VentureCard({
             <Play size={18} />
           </Button>
         </div>
-        <div className="progress-track">
-          <div
-            className={`progress-fill${isAutomatedRunning ? " progress-fill-automated" : ""}`}
-            style={isAutomatedRunning ? automatedProgressStyle : { width: `${percent}%` }}
-          />
-        </div>
+        <VentureCycleStatus isLocked={isLocked} venture={venture} />
         <div className="venture-actions">
           <Button className="venture-action-button expand-button" onClick={() => onBuy(venture.id)} disabled={!canBuy}>
             <Plus size={15} />
@@ -259,11 +265,18 @@ export function VentureCard({
             )}
           </div>
         ) : null}
+        </div>
       </div>
     </Panel>
   );
 }
 
+/**
+ * Renders compact pagination controls for a venture employee list.
+ *
+ * @param props - Current page, total item count, page size, and page change callback.
+ * @returns Pagination buttons when more than one page exists, otherwise null.
+ */
 function PaginationControls({
   currentPage,
   itemCount,
@@ -297,6 +310,12 @@ function PaginationControls({
   );
 }
 
+/**
+ * Groups employees by hierarchy level and role for budget summaries.
+ *
+ * @param employees - Employees assigned to a venture budget.
+ * @returns Sorted compensation totals by role, with managers listed first.
+ */
 function summarizeCompensation(employees: Venture["employees"]) {
   const groups = new Map<
     string,
@@ -352,4 +371,24 @@ const ventureIcons: Record<string, typeof Bot> = {
   rlhf: Users,
   "robot-campus": Bot,
   "safety-ratings": SearchCheck
+};
+
+const ventureImages: Record<string, string> = {
+  "agent-rollout": "/images/ventures/zuskoffice-copilot.webp",
+  "code-review": "/images/ventures/code-answer-review.webp",
+  "content-labeling": "/images/ventures/compare-rate-shopping.webp",
+  datacenter: "/images/ventures/compute-cathedral.webp",
+  enterprise: "/images/ventures/enterprise-zusk-license.webp",
+  "eval-suite": "/images/ventures/zuskcode-assistant.webp",
+  "executive-alignment": "/images/ventures/domain-evaluation-queue.webp",
+  "government-contract": "/images/ventures/government-zusk-mandate.webp",
+  "image-captions": "/images/ventures/helpfulness-rating.webp",
+  layoffs: "/images/ventures/zuskagent-sdk.webp",
+  "legal-redlines": "/images/ventures/policy-edge-case-review.webp",
+  "meeting-transcripts": "/images/ventures/chat-quality-audit.webp",
+  model: "/images/ventures/zuskchat-llm.webp",
+  "planetary-platform": "/images/ventures/planetary-zusk-platform.webp",
+  rlhf: "/images/ventures/image-generation-review.webp",
+  "robot-campus": "/images/ventures/humanoid-office-campus.webp",
+  "safety-ratings": "/images/ventures/fact-check-models.webp"
 };

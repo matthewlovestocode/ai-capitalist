@@ -3,6 +3,12 @@ import { Panel } from "@/components/ui/Panel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { Employee } from "@/lib/game";
 
+/**
+ * Displays displaced workers awaiting annotation work.
+ *
+ * @param props - Unemployed workers to show.
+ * @returns The unemployed workers panel.
+ */
 export function UnemployedPanel({ workers }: { workers: Employee[] }) {
   return (
     <Panel as="section" className="unemployed-panel" aria-label="Unemployed workers">

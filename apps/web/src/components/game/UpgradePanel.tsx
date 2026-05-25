@@ -5,6 +5,12 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { Upgrade } from "@/lib/game";
 import { formatMoney } from "@/lib/game";
 
+/**
+ * Shows purchasable upgrades in the Zusk levers drawer.
+ *
+ * @param props - Player cash, upgrade list, purchase callback, and optional close callback.
+ * @returns The upgrade drawer panel.
+ */
 export function UpgradePanel({
   cash,
   onClose,

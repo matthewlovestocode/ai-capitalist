@@ -24,6 +24,12 @@ const assetTabs: { id: LifestyleAssetCategory; label: string; icon: typeof Car }
   { id: "planes", label: "Planes", icon: Plane }
 ];
 
+/**
+ * Displays relationship offers and lifestyle assets that affect recurring pressure costs.
+ *
+ * @param props - Current game state and relationship or asset action callbacks.
+ * @returns The lifestyle tab content.
+ */
 export function LifestylePanel({
   onAcceptMarriage,
   onBuyAsset,
@@ -144,6 +150,12 @@ export function LifestylePanel({
   );
 }
 
+/**
+ * Renders one relationship prospect and its availability state.
+ *
+ * @param props - Wife choice metadata, relationship state flags, and dating callback.
+ * @returns A selectable relationship prospect card.
+ */
 function WifeCard({
   isDating,
   isLocked,

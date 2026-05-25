@@ -1,7 +1,14 @@
 import { BrainCircuit, Menu, RotateCcw, Settings } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 
+/**
+ * Renders the persistent top navigation with upgrades, options, and reset actions.
+ *
+ * @param props - Menu visibility and top-level navigation callbacks.
+ * @returns The top navigation bar.
+ */
 export function TopNav({
   isMenuOpen,
   onOpenOptions,
@@ -18,8 +25,11 @@ export function TopNav({
   return (
     <nav className="top-nav" aria-label="Top navigation">
       <div className="top-nav-brand">
-        <strong>AI Capitalist</strong>
-        <span>Job Killer</span>
+        <Image src="/images/branding/zusk-logo.webp" alt="" width={44} height={44} priority unoptimized />
+        <span>
+          <strong>AI Capitalist</strong>
+          <small>Job Killer</small>
+        </span>
       </div>
       <div className="top-nav-actions">
         <Button onClick={onOpenUpgrades} type="button">

@@ -23,6 +23,7 @@ export type Venture = {
   automated: boolean;
   manager?: Employee;
   employees: Employee[];
+  lastPayout?: number;
 };
 
 export type Upgrade = {
@@ -129,6 +130,13 @@ const managerRolesByCategory: Record<Venture["category"], string> = {
 const WORKER_BENEFITS_RATE = 0.22;
 const MANAGER_BENEFITS_RATE = 0.28;
 
+/**
+ * Creates a worker for a venture using category-specific roles and profitable compensation.
+ *
+ * @param venture - The venture receiving the new worker.
+ * @param index - The worker index used for stable naming, role rotation, and pay growth.
+ * @returns A worker employee with salary and benefits rounded to cents.
+ */
 export function createEmployee(venture: Pick<Venture, "id" | "category" | "baseRevenue">, index: number): Employee {
   const roleList = rolesByCategory[venture.category];
   const salary = roundMoney(Math.max(0.75, venture.baseRevenue * 0.14 * Math.pow(1.015, index)));
@@ -143,6 +151,12 @@ export function createEmployee(venture: Pick<Venture, "id" | "category" | "baseR
   };
 }
 
+/**
+ * Creates the automation manager for a venture.
+ *
+ * @param venture - The venture being automated.
+ * @returns A manager employee with category-specific title and manager benefit rate.
+ */
 export function createManager(venture: Pick<Venture, "id" | "category" | "baseRevenue" | "owned">): Employee {
   const salary = roundMoney(Math.max(3, venture.baseRevenue * Math.max(venture.owned, 1) * 0.34));
 
@@ -638,6 +652,11 @@ export const lifestyleAssets: LifestyleAsset[] = [
   { id: "supersonic-concept", name: "Supersonic Concept Jet", category: "planes", interest: "space", cost: 250000000, pressureRelief: 16 }
 ];
 
+/**
+ * Builds a fresh game state for a new save or reset.
+ *
+ * @returns The default game state with cloned venture and upgrade definitions.
+ */
 export function createInitialState(): GameState {
   return {
     cash: 6,
@@ -655,6 +674,12 @@ export function createInitialState(): GameState {
   };
 }
 
+/**
+ * Formats a numeric value as in-game currency with cents and compact large units.
+ *
+ * @param value - The amount of money to display.
+ * @returns A dollar-formatted string suitable for UI labels.
+ */
 export function formatMoney(value: number): string {
   if (value < 0) return `-${formatMoney(Math.abs(value))}`;
   if (value < 1000) return `$${value.toFixed(2)}`;
@@ -671,6 +696,13 @@ export function formatMoney(value: number): string {
   return `$${scaled.toFixed(scaled < 10 ? 2 : 1)}${units[unitIndex]}`;
 }
 
+/**
+ * Calculates the purchase cost for one or more venture expansions.
+ *
+ * @param venture - The venture being expanded.
+ * @param quantity - Number of expansion levels to price.
+ * @returns The total cost for the requested quantity.
+ */
 export function ventureCost(venture: Venture, quantity = 1): number {
   let total = 0;
   for (let i = 0; i < quantity; i += 1) {
@@ -679,10 +711,19 @@ export function ventureCost(venture: Venture, quantity = 1): number {
   return total;
 }
 
+/**
+ * Computes the active revenue multiplier for a venture from prestige and purchased upgrades.
+ *
+ * @param state - The current game state.
+ * @param ventureId - The venture receiving the multiplier.
+ * @returns The multiplicative boost applied to gross revenue.
+ */
 export function multiplierFor(state: GameState, ventureId: string): number {
   const prestigeBoost = 1 + state.prestige * 0.02;
   const venture = state.ventures.find((item) => item.id === ventureId);
 
+  // Upgrades can target one venture, a whole category, or all ventures when neither target is set.
+  // Multipliers stack multiplicatively with prestige.
   return state.upgrades.reduce((total, upgrade) => {
     if (!upgrade.purchased) return total;
     if (upgrade.category && venture?.category === upgrade.category) {
@@ -698,6 +739,12 @@ export function multiplierFor(state: GameState, ventureId: string): number {
   }, prestigeBoost);
 }
 
+/**
+ * Totals all salary and benefit costs assigned to a venture.
+ *
+ * @param venture - The venture whose employees should be costed.
+ * @returns The combined payroll for workers and manager.
+ */
 export function venturePayroll(venture: Venture): number {
   const workerPayroll = venture.employees.reduce(
     (total, employee) => total + employee.salary + employee.benefits,
@@ -707,11 +754,19 @@ export function venturePayroll(venture: Venture): number {
   return workerPayroll + managerPayroll;
 }
 
+/**
+ * Calculates compute and overhead costs for automated model-training ventures.
+ *
+ * @param venture - The venture whose automated infrastructure should be costed.
+ * @returns Compute, overhead, and total costs for the venture cycle.
+ */
 export function ventureComputeCosts(venture: Venture): { compute: number; overhead: number; total: number } {
   if (!venture.automated || venture.category !== "operations") {
     return { compute: 0, overhead: 0, total: 0 };
   }
 
+  // Automated operations stop using worker payroll as their cost model. Capacity expansion now
+  // increases GPU spend linearly, while infrastructure overhead grows more slowly with scale.
   const compute = roundMoney(venture.baseRevenue * venture.owned * 0.42);
   const overhead = roundMoney(venture.baseRevenue * Math.max(1, Math.sqrt(venture.owned)) * 0.16);
 
@@ -722,12 +777,28 @@ export function ventureComputeCosts(venture: Venture): { compute: number; overhe
   };
 }
 
+/**
+ * Calculates the gross revenue for a venture before payroll or compute costs.
+ *
+ * @param state - The current game state containing upgrades and prestige.
+ * @param venture - The venture completing a cycle.
+ * @returns The gross payout before operating costs.
+ */
 export function ventureGrossRevenue(state: GameState, venture: Venture): number {
+  // Automated operations run less often, but each completion is a larger productized release.
   const automationRewardMultiplier = venture.automated && venture.category === "operations" ? 2.5 : 1;
   return venture.baseRevenue * venture.owned * multiplierFor(state, venture.id) * automationRewardMultiplier;
 }
 
+/**
+ * Calculates the net revenue for a venture after the appropriate cost model.
+ *
+ * @param state - The current game state.
+ * @param venture - The venture completing a cycle.
+ * @returns The net payout credited on completion.
+ */
 export function ventureRevenue(state: GameState, venture: Venture): number {
+  // Manual operations and annotation work use payroll. Automated operations use compute costs.
   const costs =
     venture.automated && venture.category === "operations"
       ? ventureComputeCosts(venture).total
@@ -736,10 +807,23 @@ export function ventureRevenue(state: GameState, venture: Venture): number {
   return ventureGrossRevenue(state, venture) - costs;
 }
 
+/**
+ * Gets the effective cycle duration for a venture.
+ *
+ * @param venture - The venture whose progress timing is being rendered or advanced.
+ * @returns The cycle duration in milliseconds.
+ */
 export function ventureCycleMs(venture: Venture): number {
+  // Automated operations represent bigger release cycles: slower progress bars, larger payout.
   return venture.automated && venture.category === "operations" ? venture.cycleMs * 1.75 : venture.cycleMs;
 }
 
+/**
+ * Converts venture progress into a clamped percentage ratio.
+ *
+ * @param venture - The venture whose progress should be displayed.
+ * @returns A number between 0 and 1.
+ */
 export function ventureProgressRatio(venture: Venture): number {
   const cycleMs = ventureCycleMs(venture);
   if (cycleMs <= 0) return 0;
@@ -747,6 +831,54 @@ export function ventureProgressRatio(venture: Venture): number {
   return Math.min(1, Math.max(0, venture.progress / cycleMs));
 }
 
+/**
+ * Calculates the remaining cycle time for a running venture.
+ *
+ * @param venture - The venture whose current cycle should be timed.
+ * @returns Remaining milliseconds in the current cycle, or zero when idle or complete.
+ */
+export function ventureRemainingMs(venture: Venture): number {
+  if (venture.owned === 0 || (!venture.automated && venture.progress === 0)) return 0;
+
+  return Math.max(0, ventureCycleMs(venture) - venture.progress);
+}
+
+/**
+ * Formats a remaining cycle duration for compact venture card display.
+ *
+ * @param milliseconds - The duration to format.
+ * @returns A short countdown label.
+ */
+export function formatDuration(milliseconds: number): string {
+  const seconds = Math.max(0, milliseconds / 1000);
+  if (seconds < 10) return `${seconds.toFixed(1)}s`;
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}m ${remainingSeconds.toString().padStart(2, "0")}s`;
+}
+
+/**
+ * Calculates automated net income per second using the same payout math as the tick engine.
+ *
+ * @param state - The current game state containing ventures and multipliers.
+ * @returns The projected per-second net cash generated by automated ventures.
+ */
+export function automatedIncomePerSecond(state: GameState): number {
+  return state.ventures.reduce((total, venture) => {
+    if (!venture.automated || venture.owned === 0) return total;
+
+    return total + (ventureRevenue(state, venture) / ventureCycleMs(venture)) * 1000;
+  }, 0);
+}
+
+/**
+ * Calculates the recurring cash pressure from a selected wife's unmet interests.
+ *
+ * @param state - The current game state.
+ * @returns The per-second lifestyle pressure cost.
+ */
 export function currentLifestylePressure(state: GameState): number {
   const wife = wifeChoices.find((choice) => choice.id === state.selectedWifeId);
   if (!wife) return 0;
@@ -761,6 +893,12 @@ export function currentLifestylePressure(state: GameState): number {
   return roundMoney(unmetPressure * 0.18);
 }
 
+/**
+ * Calculates recurring cash pressure while Marlon is dating but not married.
+ *
+ * @param state - The current game state.
+ * @returns The per-second dating pressure cost.
+ */
 export function currentDatingPressure(state: GameState): number {
   const wife = wifeChoices.find((choice) => choice.id === state.datingWifeId);
   if (!wife || state.selectedWifeId) return 0;
@@ -768,6 +906,12 @@ export function currentDatingPressure(state: GameState): number {
   return roundMoney(wife.materialism * 0.06);
 }
 
+/**
+ * Calculates cash plus purchased lifestyle asset value.
+ *
+ * @param state - The current game state.
+ * @returns The player's current net worth.
+ */
 export function currentNetWorth(state: GameState): number {
   const assetValue = lifestyleAssets.reduce(
     (total, asset) => (state.ownedLifestyleAssetIds.includes(asset.id) ? total + asset.cost : total),
@@ -777,6 +921,12 @@ export function currentNetWorth(state: GameState): number {
   return roundMoney(state.cash + assetValue);
 }
 
+/**
+ * Finds the next available relationship offer based on lifetime profit.
+ *
+ * @param state - The current game state.
+ * @returns The next wife choice available to date, or null when none qualifies.
+ */
 export function nextWifeOffer(state: GameState): WifeChoice | null {
   if (state.selectedWifeId || state.datingWifeId) return null;
 
@@ -787,6 +937,14 @@ export function nextWifeOffer(state: GameState): WifeChoice | null {
   );
 }
 
+/**
+ * Reduces employee compensation when needed so a new expansion cannot lower net profit.
+ *
+ * @param employee - The newly created employee to validate.
+ * @param state - The current game state used for multipliers.
+ * @param venture - The venture receiving the employee.
+ * @returns The original employee or a compensation-capped copy.
+ */
 export function capEmployeeToProfitableExpansion(
   employee: Employee,
   state: GameState,
@@ -807,10 +965,22 @@ export function capEmployeeToProfitableExpansion(
   };
 }
 
+/**
+ * Rounds money to cents for stable state and UI calculations.
+ *
+ * @param value - The raw numeric value.
+ * @returns The value rounded to two decimal places.
+ */
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * Calculates how much new prestige can be claimed from lifetime earnings.
+ *
+ * @param state - The current game state.
+ * @returns The unclaimed prestige available on reset.
+ */
 export function claimablePrestige(state: GameState): number {
   const earned = Math.floor(Math.sqrt(state.lifetimeEarnings / 120000));
   return Math.max(0, earned - state.totalPrestigeEarned);

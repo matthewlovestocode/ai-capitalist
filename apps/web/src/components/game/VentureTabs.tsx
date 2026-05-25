@@ -9,6 +9,12 @@ export type VentureTabConfig = {
   label: string;
 };
 
+/**
+ * Renders the primary game tabs for operations, annotation, workers, and lifestyle.
+ *
+ * @param props - Active tab id, tab definitions, and change callback.
+ * @returns The tab list used above the active panel.
+ */
 export function VentureTabs({
   activeTab,
   onChange,

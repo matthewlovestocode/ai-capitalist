@@ -15,6 +15,12 @@ type WorkerRow = {
   statusIcon: typeof UserRoundCheck;
 };
 
+/**
+ * Lists active and unemployed workers with their status, job assignment, and compensation.
+ *
+ * @param props - The current game state containing ventures and unemployed workers.
+ * @returns The paginated workers tab content.
+ */
 export function WorkersPanel({ state }: { state: GameState }) {
   const [page, setPage] = useState(0);
   const activeWorkers: WorkerRow[] = state.ventures.flatMap((venture) =>
@@ -75,6 +81,12 @@ export function WorkersPanel({ state }: { state: GameState }) {
   );
 }
 
+/**
+ * Renders compact pagination controls for the global worker list.
+ *
+ * @param props - Current page, total item count, page size, and page change callback.
+ * @returns Pagination buttons when more than one page exists, otherwise null.
+ */
 function PaginationControls({
   currentPage,
   itemCount,

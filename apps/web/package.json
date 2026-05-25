@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:visual": "playwright test",
+    "test:visual:ui": "playwright test --ui"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -15,6 +17,7 @@
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.14.10",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

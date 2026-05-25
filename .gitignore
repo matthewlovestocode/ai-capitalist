@@ -12,6 +12,10 @@ apps/*/out/
 dist/
 build/
 coverage/
+playwright-report/
+test-results/
+apps/*/playwright-report/
+apps/*/test-results/
 .turbo/
 .vercel/
 .cache/
@@ -44,3 +48,6 @@ Thumbs.db
 tmp/
 temp/
 .tmp/
+
+# Large source art
+assets-originals/

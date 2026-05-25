@@ -10,7 +10,10 @@
     "build": "npm run build --workspace @capitalist/web",
     "start": "npm run start --workspace @capitalist/web",
     "prod": "npm run build && npm run start",
-    "lint": "npm run lint --workspace @capitalist/web"
+    "images:optimize": "node scripts/optimize-images.mjs",
+    "lint": "npm run lint --workspace @capitalist/web",
+    "test:visual": "npm run test:visual --workspace @capitalist/web",
+    "test:visual:ui": "npm run test:visual:ui --workspace @capitalist/web"
   },
   "engines": {
     "node": ">=20"
@@ -18,5 +21,8 @@
   "packageManager": "yarn@4.10.3+sha512.c38cafb5c7bb273f3926d04e55e1d8c9dfa7d9c3ea1f36a4868fa028b9e5f72298f0b7f401ad5eb921749eb012eb1c3bb74bf7503df3ee43fd600d14a018266f",
   "overrides": {
     "postcss": "^8.5.10"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }

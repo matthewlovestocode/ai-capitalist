@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description: "A satirical idle game about Marlon Zusk automating his company with AI."
 };
 
+/**
+ * Provides the document shell and early theme hydration script for the app.
+ *
+ * @param props - React children rendered by the active route.
+ * @returns The root HTML document layout.
+ */
 export default function RootLayout({
   children
 }: Readonly<{

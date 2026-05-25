@@ -3,6 +3,12 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 
+/**
+ * Renders a reusable modal dialog with a title, close button, and content body.
+ *
+ * @param props - Modal title, close callback, and child content.
+ * @returns An accessible modal panel inside a backdrop.
+ */
 export function Modal({
   children,
   onClose,
